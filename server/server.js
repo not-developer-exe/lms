@@ -29,7 +29,7 @@ app.use('/api/educator', express.json(), educatorRouter)
 app.use('/api/course', express.json(), courseRouter)
 app.use('/api/user', express.json(), userRouter)
 app.use('/api/admin', express.json(), adminRouter)
-app.use('/api/quiz', express.json(), quizRouter) 
+app.use('/api/quiz', express.json(), quizRouter) // 2. Add this line to USE the quiz router
 
 // Port
 const PORT = process.env.PORT || 5001
