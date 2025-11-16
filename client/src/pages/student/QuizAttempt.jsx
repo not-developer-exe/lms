@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
@@ -16,7 +16,14 @@ const QuizAttempt = () => {
     const [answers, setAnswers] = useState({});
     const [loading, setLoading] = useState(true);
     const [score, setScore] = useState(null);
+    
+    // --- NEW STATE FOR STAGE 2 ---
+    const [quizStarted, setQuizStarted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Use a ref to track submission status in event listeners
+    const isSubmittingRef = useRef(false);
+    // --- END NEW STATE ---
+
 
     useEffect(() => {
         const fetchQuiz = async () => {
@@ -32,20 +39,17 @@ const QuizAttempt = () => {
                     toast.error(data.message);
                 }
             } catch (error) {
-                // --- UPDATED ERROR HANDLING ---
                 if (error.response?.status === 403) {
-                    // This handles re-attempts or time-window errors
                     toast.error(error.response.data.message);
-                    navigate('/quizzes'); // Redirect them back
+                    navigate('/quizzes'); 
                 } else {
                     toast.error(error.response?.data?.message || "Failed to fetch quiz");
                 }
-                // --- END UPDATE ---
             }
             setLoading(false);
         };
         fetchQuiz();
-    }, [quizId, backendUrl, getToken, navigate]); // Added navigate to dependency array
+    }, [quizId, backendUrl, getToken, navigate]);
 
     const handleAnswerSelect = (questionId, optionIndex) => {
         setAnswers(prevAnswers => ({
@@ -54,8 +58,13 @@ const QuizAttempt = () => {
         }));
     };
 
+    // --- UPDATED handleSubmit ---
     const handleSubmit = async () => {
+        // Prevent double submits
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
         setIsSubmitting(true);
+
         const finalAnswers = Object.keys(answers).map(questionId => ({
             questionId: questionId,
             selectedOption: answers[questionId]
@@ -75,15 +84,69 @@ const QuizAttempt = () => {
                 toast.error(data.message);
             }
         } catch (error) {
-            // Also handle errors on submit (e.g., time expired during attempt)
             if (error.response?.status === 403) {
                 toast.error(error.response.data.message);
-                navigate('/quizzes'); // Redirect them back
+                navigate('/quizzes'); 
             } else {
                 toast.error(error.response?.data?.message || "Failed to submit quiz");
             }
         }
     };
+
+    // --- NEW FUNCTIONS FOR STAGE 2 ---
+    const handleStartQuiz = () => {
+        // Request fullscreen
+        document.documentElement.requestFullscreen().catch((e) => {
+            console.warn("Fullscreen request failed:", e);
+            toast.warn("Please enable fullscreen for the best experience.");
+        });
+        setQuizStarted(true);
+    };
+
+    const handleAutoSubmit = async () => {
+        if (isSubmittingRef.current) return;
+    
+        toast.warn("Quiz auto-submitted due to tab change or exiting fullscreen.", {
+            autoClose: 5000
+        });
+    
+        // Exit fullscreen if still in it
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        }
+    
+        // Call the original submit function
+        handleSubmit();
+    };
+
+    // --- NEW useEffect FOR STAGE 2 ---
+    // This effect adds the anti-cheating event listeners
+    useEffect(() => {
+        // Only run if the quiz has started and hasn't been scored yet
+        if (quizStarted && !score) {
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'hidden') {
+                    handleAutoSubmit();
+                }
+            };
+    
+            const handleFullscreenChange = () => {
+                if (!document.fullscreenElement) {
+                    handleAutoSubmit();
+                }
+            };
+    
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+            // Cleanup function
+            return () => {
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            };
+        }
+    }, [quizStarted, score]); // Dependencies
+
 
     if (loading) {
         return <Loading />;
@@ -107,6 +170,30 @@ const QuizAttempt = () => {
                         className="mt-6 bg-blue-600 text-white py-2 px-6 rounded font-medium"
                     >
                         Back to Quizzes
+                    </button>
+                </div>
+            </div>
+        );
+    }
+    
+    // --- NEW: Show "Start Quiz" button first ---
+    if (!quizStarted) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+                <div className="bg-white p-8 rounded-lg shadow-lg">
+                    <h1 className="text-2xl font-bold mb-2">{quiz?.title}</h1>
+                    <p className="text-gray-600 mb-6">Subject: {quiz?.subject}</p>
+                    <h2 className="text-lg font-semibold text-red-600 mb-4">Quiz Rules:</h2>
+                    <ul className="list-disc list-inside text-left text-gray-700 mb-6">
+                        <li>This quiz will open in fullscreen mode.</li>
+                        <li>Exiting fullscreen will auto-submit your quiz.</li>
+                        <li>Switching tabs will auto-submit your quiz.</li>
+                    </ul>
+                    <button
+                        onClick={handleStartQuiz}
+                        className="w-full bg-blue-600 text-white py-3 px-6 rounded font-medium text-lg"
+                    >
+                        Start Quiz
                     </button>
                 </div>
             </div>
