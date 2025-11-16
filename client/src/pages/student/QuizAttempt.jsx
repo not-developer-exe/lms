@@ -4,12 +4,12 @@ import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
 import Loading from '../../components/student/Loading';
 import { toast } from 'react-toastify';
-import { assets } from '../../assets/assets'; // Import assets for cross_icon
+import { assets } from '../../assets/assets';
+import * as faceapi from 'face-api.js';
 
 const QuizAttempt = () => {
     const { quizId } = useParams();
     const navigate = useNavigate();
-    // Get userData for the watermark
     const { backendUrl, getToken, userData } = useContext(AppContext);
 
     const [quiz, setQuiz] = useState(null);
@@ -23,12 +23,44 @@ const QuizAttempt = () => {
     const [quizStarted, setQuizStarted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isSubmittingRef = useRef(false);
-
-    // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [attemptedCount, setAttemptedCount] = useState(0);
     const [leftCount, setLeftCount] = useState(0);
 
+    // Stage 3 State
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [proctoringStarted, setProctoringStarted] = useState(false);
+    const [warnings, setWarnings] = useState(0);
+    const [maxWarnings, setMaxWarnings] = useState(0);
+    const [proctoringMessage, setProctoringMessage] = useState("Please wait, loading AI models...");
+    const videoRef = useRef(); // Ref for the webcam video
+    const proctorIntervalRef = useRef(); // Ref for the interval
+    // --- FIX: Store stream in state ---
+    const [mediaStream, setMediaStream] = useState(null); 
+    // --- END FIX ---
+
+    // Load Face-API models
+    useEffect(() => {
+        const loadModels = async () => {
+            const MODEL_URL = '/models'; // From client/public/models
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+                ]);
+                setModelsLoaded(true);
+                setProctoringMessage("AI models loaded. Ready to start.");
+            } catch (error) {
+                console.error("Failed to load models", error);
+                toast.error("Failed to load AI proctoring. Please refresh.");
+                setProctoringMessage("Error loading AI models. Please refresh.");
+            }
+        };
+        loadModels();
+    }, []);
+
+    // Fetch quiz data
     useEffect(() => {
         const fetchQuiz = async () => {
             try {
@@ -66,7 +98,15 @@ const QuizAttempt = () => {
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
         setIsSubmitting(true);
-        setShowConfirmModal(false); 
+        setShowConfirmModal(false);
+
+        // Stop proctoring
+        clearInterval(proctorIntervalRef.current);
+        // --- FIX: Stop tracks from mediaStream state ---
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+        }
+        // --- END FIX ---
 
         if (document.fullscreenElement) {
             await document.exitFullscreen();
@@ -100,18 +140,47 @@ const QuizAttempt = () => {
         }
     };
 
-    const handleStartQuiz = () => {
-        document.documentElement.requestFullscreen().catch((e) => {
-            console.warn("Fullscreen request failed:", e);
-            toast.warn("Please enable fullscreen for the best experience.");
-        });
-        setQuizStarted(true);
-    };
+    const handleStartQuiz = async () => {
+        if (!modelsLoaded) {
+            toast.error("AI models are still loading, please wait.");
+            return;
+        }
 
+        try {
+            // 1. Get Webcam/Mic permissions
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true,
+            });
+            // --- FIX: Save stream to state ---
+            setMediaStream(stream);
+            // --- END FIX ---
+            setProctoringMessage("Permissions granted. Starting quiz...");
+            
+            // 2. Set random warning limit
+            const randomMax = Math.floor(Math.random() * 3) + 3; // 3, 4, or 5
+            setMaxWarnings(randomMax);
+
+            // 3. Request fullscreen
+            await document.documentElement.requestFullscreen().catch((e) => {
+                console.warn("Fullscreen request failed:", e);
+                toast.warn("Please enable fullscreen for the best experience.");
+            });
+            
+            // 4. Start quiz
+            setQuizStarted(true);
+
+        } catch (err) {
+            console.error("Permission error:", err);
+            toast.error("Webcam and Mic are required for this quiz.");
+            setProctoringMessage("Webcam/Mic access denied. Please allow and refresh.");
+        }
+    };
+    
     const handleAutoSubmit = () => {
         if (isSubmittingRef.current) return;
     
-        toast.warn("Quiz auto-submitted due to tab change or exiting fullscreen.", {
+        toast.warn("Quiz auto-submitted due to proctoring violation or tab change.", {
             autoClose: 5000
         });
     
@@ -130,12 +199,14 @@ const QuizAttempt = () => {
         if (quizStarted && !score) {
             const handleVisibilityChange = () => {
                 if (document.visibilityState === 'hidden') {
+                    setProctoringMessage("Tab switch detected!");
                     handleAutoSubmit();
                 }
             };
     
             const handleFullscreenChange = () => {
                 if (!document.fullscreenElement) {
+                    setProctoringMessage("Exited fullscreen!");
                     handleAutoSubmit();
                 }
             };
@@ -149,6 +220,86 @@ const QuizAttempt = () => {
             };
         }
     }, [quizStarted, score]);
+    
+    // --- NEW: useEffect to attach stream to video element ---
+    useEffect(() => {
+        if (quizStarted && videoRef.current && mediaStream) {
+            videoRef.current.srcObject = mediaStream;
+        }
+    }, [quizStarted, mediaStream]);
+    // --- END NEW ---
+
+    // Proctoring Interval useEffect
+    useEffect(() => {
+        // --- FIX: Check for mediaStream ---
+        if (proctoringStarted && !isSubmittingRef.current && mediaStream) {
+            // Setup audio analyzer
+            const audioContext = new AudioContext();
+            const analyser = audioContext.createAnalyser();
+            const microphone = audioContext.createMediaStreamSource(mediaStream);
+            // --- END FIX ---
+            microphone.connect(analyser);
+            analyser.fftSize = 512;
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            proctorIntervalRef.current = setInterval(async () => {
+                if (isSubmittingRef.current || !videoRef.current) return;
+                
+                // 1. Face Detection
+                const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+                
+                let newWarning = false;
+                let msg = "Proctoring active...";
+                
+                if (detections.length === 0) {
+                    msg = "No face detected!";
+                    newWarning = true;
+                } else if (detections.length > 1) {
+                    msg = "Multiple faces detected!";
+                    newWarning = true;
+                } else {
+                    // Simple "look away" check
+                    const expressions = detections[0].expressions;
+                    if (expressions.neutral < 0.5 && expressions.happy < 0.5) {
+                         // This is a basic proxy for looking away
+                    }
+                }
+
+                // 2. Sound Detection
+                analyser.getByteFrequencyData(dataArray);
+                let sum = dataArray.reduce((a, b) => a + b, 0);
+                let average = sum / dataArray.length;
+                
+                if (average > 30) { 
+                    msg = "Noise/Talking detected!";
+                    newWarning = true;
+                }
+
+                setProctoringMessage(msg);
+
+                if (newWarning) {
+                    setWarnings(w => {
+                        const newWarningCount = w + 1;
+                        if (newWarningCount > w) { // Only toast on new warning
+                            toast.warn(`Warning ${newWarningCount} of ${maxWarnings}!`, { autoClose: 2000 });
+                        
+                            if (newWarningCount >= maxWarnings) {
+                                handleAutoSubmit();
+                            }
+                        }
+                        return newWarningCount;
+                    });
+                }
+
+            }, 4000); // Check every 4 seconds
+
+            return () => {
+                clearInterval(proctorIntervalRef.current);
+                audioContext.close();
+            };
+        }
+    // --- FIX: Add mediaStream to dependency array ---
+    }, [proctoringStarted, maxWarnings, mediaStream]);
 
 
     if (loading) {
@@ -178,24 +329,30 @@ const QuizAttempt = () => {
         );
     }
     
+    // UPDATED Start Screen (Stage 3)
     if (!quizStarted) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
                 <div className="bg-white p-8 rounded-lg shadow-lg">
+                    {/* --- FIX: Removed hidden video element --- */}
                     <h1 className="text-2xl font-bold mb-2">{quiz?.title}</h1>
                     <p className="text-gray-600 mb-6">Subject: {quiz?.subject}</p>
-                    <h2 className="text-lg font-semibold text-red-600 mb-4">Quiz Rules:</h2>
+                    <h2 className="text-lg font-semibold text-red-600 mb-4">Quiz Rules (AI PROCTORED):</h2>
                     <ul className="list-disc list-inside text-left text-gray-700 mb-6">
-                        <li>This quiz will open in fullscreen mode.</li>
-                        <li>Exiting fullscreen will auto-submit your quiz.</li>
-                        <li>Switching tabs will auto-submit your quiz.</li>
+                        <li>Webcam and Microphone access are required.</li>
+                        <li>Keep your face visible and centered.</li>
+                        <li>Avoid talking or excessive background noise.</li>
+                        <li>Do not switch tabs or exit fullscreen.</li>
+                        <li>Violating rules will add warnings. Too many warnings will auto-submit.</li>
                     </ul>
                     <button
                         onClick={handleStartQuiz}
-                        className="w-full bg-blue-600 text-white py-3 px-6 rounded font-medium text-lg"
+                        disabled={!modelsLoaded}
+                        className="w-full bg-blue-600 text-white py-3 px-6 rounded font-medium text-lg disabled:bg-gray-400"
                     >
-                        Start Quiz
+                        {modelsLoaded ? "Grant Permissions & Start Quiz" : "Loading AI Models..."}
                     </button>
+                    <p className="text-sm text-gray-500 mt-4">{proctoringMessage}</p>
                 </div>
             </div>
         );
@@ -206,14 +363,13 @@ const QuizAttempt = () => {
     return (
         <div className="min-h-screen flex flex-col md:flex-row p-4 md:p-8">
             
-            {/* --- NEW TILED WATERMARK --- */}
+            {/* Tiled Watermark */}
             {userData && (
                 <div className="fixed inset-0 flex flex-wrap justify-center items-center gap-x-12 gap-y-20 overflow-hidden pointer-events-none z-10">
-                    {/* Create a large array to tile the watermark */}
                     {Array.from({ length: 100 }).map((_, i) => (
                         <span 
                             key={i} 
-                            className="text-xl font-semibold text-gray-900 opacity-5" 
+                            className="text-lg font-semibold text-gray-900 opacity-5" 
                             style={{ transform: 'rotate(-30deg)' }}
                         >
                             {userData.email}
@@ -221,8 +377,22 @@ const QuizAttempt = () => {
                     ))}
                 </div>
             )}
-            {/* --- END WATERMARK --- */}
-
+            
+            {/* Proctoring status bar */}
+            <div className="fixed top-0 left-0 w-full bg-gray-800 text-white p-2 text-center z-50">
+                Warnings: {warnings} / {maxWarnings} | {proctoringMessage}
+            </div>
+        
+            {/* Visible video element */}
+            <video 
+                ref={videoRef} 
+                onPlay={() => setProctoringStarted(true)} // This now works
+                autoPlay 
+                muted 
+                width="160" 
+                height="120" 
+                className="fixed bottom-2 left-2 z-50 border-2 border-white rounded-md"
+            ></video>
 
             {/* Confirmation Modal */}
             {showConfirmModal && (
@@ -258,9 +428,8 @@ const QuizAttempt = () => {
                 </div>
             )}
 
-
-            {/* Question Palette */}
-            <div className="w-full md:w-1/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0 relative z-20 bg-white bg-opacity-50">
+            {/* Question Palette (with padding-top for status bar) */}
+            <div className="w-full md:w-1S/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0 relative z-20 bg-white bg-opacity-50 pt-16 md:pt-4">
                 <h2 className="font-semibold mb-4">Questions</h2>
                 <div className="flex flex-wrap gap-2">
                     {questions.map((q, index) => {
@@ -285,8 +454,8 @@ const QuizAttempt = () => {
                 </div>
             </div>
 
-            {/* Question Display */}
-            <div className="w-full md:w-3/4 p-4 md:pl-8 relative z-20 bg-white bg-opacity-50">
+            {/* Question Display (with padding-top for status bar) */}
+            <div className="w-full md:w-3/4 p-4 md:pl-8 relative z-20 bg-white bg-opacity-50 pt-16 md:pt-4">
                 {currentQuestion && (
                     <div>
                         <h1 className="text-xl font-semibold mb-2">{quiz.title}</h1>
