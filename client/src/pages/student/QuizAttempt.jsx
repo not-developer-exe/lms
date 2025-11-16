@@ -33,16 +33,14 @@ const QuizAttempt = () => {
     const [warnings, setWarnings] = useState(0);
     const [maxWarnings, setMaxWarnings] = useState(0);
     const [proctoringMessage, setProctoringMessage] = useState("Please wait, loading AI models...");
-    const videoRef = useRef(); // Ref for the webcam video
-    const proctorIntervalRef = useRef(); // Ref for the interval
-    // --- FIX: Store stream in state ---
+    const videoRef = useRef(); 
+    const proctorIntervalRef = useRef(); 
     const [mediaStream, setMediaStream] = useState(null); 
-    // --- END FIX ---
 
     // Load Face-API models
     useEffect(() => {
         const loadModels = async () => {
-            const MODEL_URL = '/models'; // From client/public/models
+            const MODEL_URL = '/models'; 
             try {
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -100,13 +98,10 @@ const QuizAttempt = () => {
         setIsSubmitting(true);
         setShowConfirmModal(false);
 
-        // Stop proctoring
         clearInterval(proctorIntervalRef.current);
-        // --- FIX: Stop tracks from mediaStream state ---
         if (mediaStream) {
             mediaStream.getTracks().forEach(track => track.stop());
         }
-        // --- END FIX ---
 
         if (document.fullscreenElement) {
             await document.exitFullscreen();
@@ -147,27 +142,21 @@ const QuizAttempt = () => {
         }
 
         try {
-            // 1. Get Webcam/Mic permissions
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true,
             });
-            // --- FIX: Save stream to state ---
             setMediaStream(stream);
-            // --- END FIX ---
             setProctoringMessage("Permissions granted. Starting quiz...");
             
-            // 2. Set random warning limit
             const randomMax = Math.floor(Math.random() * 3) + 3; // 3, 4, or 5
             setMaxWarnings(randomMax);
 
-            // 3. Request fullscreen
             await document.documentElement.requestFullscreen().catch((e) => {
                 console.warn("Fullscreen request failed:", e);
                 toast.warn("Please enable fullscreen for the best experience.");
             });
             
-            // 4. Start quiz
             setQuizStarted(true);
 
         } catch (err) {
@@ -221,23 +210,18 @@ const QuizAttempt = () => {
         }
     }, [quizStarted, score]);
     
-    // --- NEW: useEffect to attach stream to video element ---
     useEffect(() => {
         if (quizStarted && videoRef.current && mediaStream) {
             videoRef.current.srcObject = mediaStream;
         }
     }, [quizStarted, mediaStream]);
-    // --- END NEW ---
 
     // Proctoring Interval useEffect
     useEffect(() => {
-        // --- FIX: Check for mediaStream ---
         if (proctoringStarted && !isSubmittingRef.current && mediaStream) {
-            // Setup audio analyzer
             const audioContext = new AudioContext();
             const analyser = audioContext.createAnalyser();
             const microphone = audioContext.createMediaStreamSource(mediaStream);
-            // --- END FIX ---
             microphone.connect(analyser);
             analyser.fftSize = 512;
             const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -257,12 +241,6 @@ const QuizAttempt = () => {
                 } else if (detections.length > 1) {
                     msg = "Multiple faces detected!";
                     newWarning = true;
-                } else {
-                    // Simple "look away" check
-                    const expressions = detections[0].expressions;
-                    if (expressions.neutral < 0.5 && expressions.happy < 0.5) {
-                         // This is a basic proxy for looking away
-                    }
                 }
 
                 // 2. Sound Detection
@@ -270,35 +248,39 @@ const QuizAttempt = () => {
                 let sum = dataArray.reduce((a, b) => a + b, 0);
                 let average = sum / dataArray.length;
                 
-                if (average > 30) { 
+                // --- TWEAK 1: Raised audio threshold ---
+                if (average > 35) { // Was 20, raised to 35
                     msg = "Noise/Talking detected!";
                     newWarning = true;
                 }
+                // --- END TWEAK 1 ---
 
                 setProctoringMessage(msg);
 
+                // --- TWEAK 2: Cleaned up warning logic ---
                 if (newWarning) {
-                    setWarnings(w => {
-                        const newWarningCount = w + 1;
-                        if (newWarningCount > w) { // Only toast on new warning
-                            toast.warn(`Warning ${newWarningCount} of ${maxWarnings}!`, { autoClose: 2000 });
+                    // This logic ensures we only toast once per warning increment
+                    setWarnings(currentWarnings => {
+                        const newWarningCount = currentWarnings + 1;
                         
-                            if (newWarningCount >= maxWarnings) {
-                                handleAutoSubmit();
-                            }
+                        toast.warn(`Warning ${newWarningCount} of ${maxWarnings}!`, { autoClose: 1500 });
+                    
+                        if (newWarningCount >= maxWarnings) {
+                            handleAutoSubmit();
                         }
+                        
                         return newWarningCount;
                     });
                 }
+                // --- END TWEAK 2 ---
 
-            }, 4000); // Check every 4 seconds
+            }, 2000); // Check every 2 seconds
 
             return () => {
                 clearInterval(proctorIntervalRef.current);
                 audioContext.close();
             };
         }
-    // --- FIX: Add mediaStream to dependency array ---
     }, [proctoringStarted, maxWarnings, mediaStream]);
 
 
@@ -329,12 +311,12 @@ const QuizAttempt = () => {
         );
     }
     
-    // UPDATED Start Screen (Stage 3)
     if (!quizStarted) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
                 <div className="bg-white p-8 rounded-lg shadow-lg">
-                    {/* --- FIX: Removed hidden video element --- */}
+                    <video ref={videoRef} autoPlay muted width="320" height="240" className="hidden"></video>
+                
                     <h1 className="text-2xl font-bold mb-2">{quiz?.title}</h1>
                     <p className="text-gray-600 mb-6">Subject: {quiz?.subject}</p>
                     <h2 className="text-lg font-semibold text-red-600 mb-4">Quiz Rules (AI PROCTORED):</h2>
@@ -386,7 +368,7 @@ const QuizAttempt = () => {
             {/* Visible video element */}
             <video 
                 ref={videoRef} 
-                onPlay={() => setProctoringStarted(true)} // This now works
+                onPlay={() => setProctoringStarted(true)} 
                 autoPlay 
                 muted 
                 width="160" 
@@ -429,7 +411,7 @@ const QuizAttempt = () => {
             )}
 
             {/* Question Palette (with padding-top for status bar) */}
-            <div className="w-full md:w-1S/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0 relative z-20 bg-white bg-opacity-50 pt-16 md:pt-4">
+            <div className="w-full md:w-1/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0 relative z-20 bg-white bg-opacity-50 pt-16 md:pt-4">
                 <h2 className="font-semibold mb-4">Questions</h2>
                 <div className="flex flex-wrap gap-2">
                     {questions.map((q, index) => {
