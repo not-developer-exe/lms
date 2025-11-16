@@ -6,7 +6,8 @@ import {
     submitQuiz,
     getAllManagedQuizzes,
     getQuizResults,
-    deleteQuiz // 1. Import new function
+    deleteQuiz,
+    exportQuizResults 
 } from '../controllers/quizController.js';
 import { protectAdmin, protectEducator } from '../middlewares/authMiddleware.js';
 
@@ -16,7 +17,8 @@ const quizRouter = express.Router();
 quizRouter.post('/create', protectEducator, createQuiz);
 quizRouter.get('/all-managed', protectEducator, getAllManagedQuizzes);
 quizRouter.get('/results/:quizId', protectEducator, getQuizResults);
-quizRouter.delete('/:quizId', protectEducator, deleteQuiz); // 2. Add new DELETE route
+quizRouter.delete('/:quizId', protectEducator, deleteQuiz);
+quizRouter.get('/export-results/:quizId', protectEducator, exportQuizResults); // 
 
 // Student Routes
 quizRouter.get('/all', getAllQuizzes);

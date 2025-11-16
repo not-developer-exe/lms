@@ -10,10 +10,8 @@ const AddQuiz = () => {
     
     const [title, setTitle] = useState('');
     const [subject, setSubject] = useState('');
-    // --- NEW STATE ---
     const [availableFrom, setAvailableFrom] = useState('');
     const [availableTo, setAvailableTo] = useState('');
-    // --- END NEW STATE ---
     const [questions, setQuestions] = useState([
         { id: uniqid(), questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }
     ]);
@@ -63,9 +61,21 @@ const AddQuiz = () => {
         e.preventDefault();
         try {
             const token = await getToken();
+
+            // --- THIS IS THE FIX ---
+            // Convert the local datetime string into a full UTC ISO string
+            const dataToSend = {
+                title,
+                subject,
+                questions,
+                availableFrom: new Date(availableFrom).toISOString(),
+                availableTo: new Date(availableTo).toISOString()
+            };
+            // --- END FIX ---
+
             const { data } = await axios.post(
                 `${backendUrl}/api/quiz/create`,
-                { title, subject, questions, availableFrom, availableTo }, // Send new date fields
+                dataToSend, // Send the fixed data
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -74,8 +84,8 @@ const AddQuiz = () => {
                 // Reset form
                 setTitle('');
                 setSubject('');
-                setAvailableFrom(''); // Reset date
-                setAvailableTo('');   // Reset date
+                setAvailableFrom('');
+                setAvailableTo('');
                 setQuestions([{ id: uniqid(), questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }]);
             } else {
                 toast.error(data.message);
@@ -113,7 +123,6 @@ const AddQuiz = () => {
                             required
                         />
                     </div>
-                    {/* --- NEW DATE FIELDS --- */}
                     <div className="flex gap-4">
                         <div className="flex flex-col gap-1 w-1/2">
                             <p>Available From</p>
@@ -136,7 +145,6 @@ const AddQuiz = () => {
                             />
                         </div>
                     </div>
-                     {/* --- END NEW DATE FIELDS --- */}
                 </div>
 
                 {/* Questions */}

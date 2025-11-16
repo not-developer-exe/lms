@@ -9,6 +9,8 @@ const QuizResults = () => {
     const { backendUrl, isEducator, getToken } = useContext(AppContext);
     const [results, setResults] = useState(null);
     const { quizId } = useParams();
+    const [quizTitle, setQuizTitle] = useState("Quiz"); // State to hold title
+    const [isDownloading, setIsDownloading] = useState(false);
 
     useEffect(() => {
         const fetchResults = async () => {
@@ -30,11 +32,64 @@ const QuizResults = () => {
         }
     }, [isEducator, quizId]);
 
+    // --- NEW DOWNLOAD FUNCTION ---
+    const handleDownload = async () => {
+        setIsDownloading(true);
+        try {
+            const token = await getToken();
+            const response = await axios.get(`${backendUrl}/api/quiz/export-results/${quizId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob' // This is crucial for file downloads
+            });
+
+            // Extract filename from header
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = "quiz-results.xlsx"; // Default
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch.length > 1) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create a temporary link to trigger the download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            
+            // Clean up
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            toast.error("Failed to download results");
+        }
+        setIsDownloading(false);
+    };
+    // --- END NEW FUNCTION ---
+
     return results ? (
         <div className="min-h-screen flex flex-col items-start md:p-8 md:pb-0 p-4 pt-8 pb-0">
             <div className='w-full'>
-                <Link to="/educator/my-quizzes" className="text-blue-500 mb-4 inline-block">&larr; Back to My Quizzes</Link>
-                <h2 className="pb-4 text-lg font-medium">Quiz Results</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <div>
+                        <Link to="/educator/my-quizzes" className="text-blue-500 inline-block">&larr; Back to My Quizzes</Link>
+                        <h2 className="pb-4 text-lg font-medium">Quiz Results</h2>
+                    </div>
+                    {/* --- NEW DOWNLOAD BUTTON --- */}
+                    <button
+                        onClick={handleDownload}
+                        disabled={isDownloading}
+                        className="bg-green-600 text-white py-2 px-4 rounded font-medium disabled:bg-green-400"
+                    >
+                        {isDownloading ? "Downloading..." : "Download XLS"}
+                    </button>
+                    {/* --- END NEW BUTTON --- */}
+                </div>
+
                 {results.length > 0 ? (
                     <div className="flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md bg-white border border-gray-500/20">
                         <table className="md:table-auto table-fixed w-full overflow-hidden">

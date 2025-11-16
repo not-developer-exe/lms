@@ -1,6 +1,7 @@
 import Quiz from '../models/Quiz.js';
 import Question from '../models/Question.js';
 import QuizResult from '../models/QuizResult.js';
+import exceljs from 'exceljs'; 
 
 // Helper function to shuffle an array (Fisher-Yates shuffle)
 function shuffleArray(array) {
@@ -218,34 +219,91 @@ export const getQuizResults = async (req, res) => {
     }
 };
 
-// --- NEW FUNCTION ---
 // Educator: Delete a quiz
 export const deleteQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
         const educatorId = req.auth.userId;
 
-        // 1. Find the quiz
         const quiz = await Quiz.findById(quizId);
         if (!quiz) {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
-        // 2. Verify the educator owns this quiz
         if (quiz.createdBy.toString() !== educatorId) {
             return res.status(403).json({ success: false, message: "You are not authorized to delete this quiz" });
         }
 
-        // 3. Delete all associated results
         await QuizResult.deleteMany({ quizId: quizId });
-
-        // 4. Delete all associated questions
         await Question.deleteMany({ quizId: quizId });
-
-        // 5. Delete the quiz itself
         await Quiz.findByIdAndDelete(quizId);
 
         res.json({ success: true, message: "Quiz and all associated data deleted successfully." });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// --- NEW FUNCTION ---
+// Educator: Export Quiz Results to XLS
+export const exportQuizResults = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+
+        // 1. Fetch the quiz title
+        const quiz = await Quiz.findById(quizId).select('title');
+        if (!quiz) {
+            return res.status(404).json({ success: false, message: "Quiz not found" });
+        }
+        
+        // 2. Fetch results
+        const results = await QuizResult.find({ quizId })
+            .populate('userId', 'name email');
+
+        // 3. Create Workbook and Worksheet
+        const workbook = new exceljs.Workbook();
+        const worksheet = workbook.addWorksheet(`${quiz.title} - Results`);
+
+        // 4. Define columns (with styling)
+        worksheet.columns = [
+            { header: 'Student Name', key: 'name', width: 30 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'Score', key: 'score', width: 10 },
+            { header: 'Correct', key: 'correct', width: 10 },
+            { header: 'Wrong', key: 'wrong', width: 10 },
+            { header: 'Total', key: 'total', width: 10 }
+        ];
+        
+        // Make header row bold
+        worksheet.getRow(1).font = { bold: true };
+
+        // 5. Add data rows
+        results.forEach(result => {
+            worksheet.addRow({
+                name: result.userId.name,
+                email: result.userId.email,
+                score: result.score.toFixed(2),
+                correct: result.correctAnswers,
+                wrong: result.wrongAnswers,
+                total: result.totalQuestions
+            });
+        });
+
+        // 6. Set response headers
+        const fileName = `${quiz.title.replace(/ /g, '_')}-Results.xlsx`;
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=${fileName}`
+        );
+
+        // 7. Write to response
+        await workbook.xlsx.write(res);
+        res.end();
 
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
