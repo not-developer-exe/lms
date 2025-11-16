@@ -1,7 +1,7 @@
 import Quiz from '../models/Quiz.js';
 import Question from '../models/Question.js';
 import QuizResult from '../models/QuizResult.js';
-import exceljs from 'exceljs'; 
+import exceljs from 'exceljs'; // <-- THIS IS THE MISSING IMPORT
 
 // Helper function to shuffle an array (Fisher-Yates shuffle)
 function shuffleArray(array) {
@@ -227,7 +227,7 @@ export const deleteQuiz = async (req, res) => {
 
         const quiz = await Quiz.findById(quizId);
         if (!quiz) {
-            return res.status(404).json({ success: false, message: "Quiz not found" });
+            return res.status(4F4).json({ success: false, message: "Quiz not found" });
         }
 
         if (quiz.createdBy.toString() !== educatorId) {
@@ -245,7 +245,6 @@ export const deleteQuiz = async (req, res) => {
     }
 };
 
-// --- NEW FUNCTION ---
 // Educator: Export Quiz Results to XLS
 export const exportQuizResults = async (req, res) => {
     try {
