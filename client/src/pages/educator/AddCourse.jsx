@@ -14,8 +14,8 @@ const AddCourse = () => {
   const { backendUrl, getToken } = useContext(AppContext)
 
   const [courseTitle, setCourseTitle] = useState('')
-  const [coursePrice, setCoursePrice] = useState(0)
-  const [discount, setDiscount] = useState(0)
+  // const [coursePrice, setCoursePrice] = useState(0) // Removed
+  // const [discount, setDiscount] = useState(0) // Removed
   const [image, setImage] = useState(null)
   const [chapters, setChapters] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
@@ -102,9 +102,12 @@ const AddCourse = () => {
       const courseData = {
         courseTitle,
         courseDescription: quillRef.current.root.innerHTML,
-        coursePrice: Number(coursePrice),
-        discount: Number(discount),
+        // coursePrice: Number(coursePrice), // Removed
+        // discount: Number(discount), // Removed
         courseContent: chapters,
+        // Add default values since they are still in the model
+        coursePrice: 0, 
+        discount: 0,
       }
 
       const formData = new FormData()
@@ -120,8 +123,8 @@ const AddCourse = () => {
       if (data.success) {
         toast.success(data.message)
         setCourseTitle('')
-        setCoursePrice(0)
-        setDiscount(0)
+        // setCoursePrice(0) // Removed
+        // setDiscount(0) // Removed
         setImage(null)
         setChapters([])
         quillRef.current.root.innerHTML = ""
@@ -161,12 +164,8 @@ const AddCourse = () => {
           <div ref={editorRef}></div>
         </div>
 
+        {/* Price and Discount fields are removed */}
         <div className='flex items-center justify-between flex-wrap'>
-          <div className='flex flex-col gap-1'>
-            <p>Course Price</p>
-            <input onChange={e => setCoursePrice(e.target.value)} value={coursePrice} type="number" placeholder='0' className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500' required />
-          </ div>
-
           <div className='flex md:flex-row flex-col items-center gap-3'>
             <p>Course Thumbnail</p>
             <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
@@ -175,11 +174,6 @@ const AddCourse = () => {
               <img className='max-h-10' src={image ? URL.createObjectURL(image) : ''} alt="" />
             </label>
           </div>
-        </div>
-
-        <div className='flex flex-col gap-1'>
-          <p>Discount %</p>
-          <input onChange={e => setDiscount(e.target.value)} value={discount} type="number" placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500' required />
         </div>
 
         {/* Adding Chapters & Lectures */}
