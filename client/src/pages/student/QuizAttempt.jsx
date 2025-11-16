@@ -4,11 +4,13 @@ import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
 import Loading from '../../components/student/Loading';
 import { toast } from 'react-toastify';
+import { assets } from '../../assets/assets'; // Import assets for cross_icon
 
 const QuizAttempt = () => {
     const { quizId } = useParams();
     const navigate = useNavigate();
-    const { backendUrl, getToken } = useContext(AppContext);
+    // Get userData for the watermark
+    const { backendUrl, getToken, userData } = useContext(AppContext);
 
     const [quiz, setQuiz] = useState(null);
     const [questions, setQuestions] = useState([]);
@@ -17,13 +19,15 @@ const QuizAttempt = () => {
     const [loading, setLoading] = useState(true);
     const [score, setScore] = useState(null);
     
-    // --- NEW STATE FOR STAGE 2 ---
+    // Stage 2 State
     const [quizStarted, setQuizStarted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // Use a ref to track submission status in event listeners
     const isSubmittingRef = useRef(false);
-    // --- END NEW STATE ---
 
+    // Confirmation Modal State
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [attemptedCount, setAttemptedCount] = useState(0);
+    const [leftCount, setLeftCount] = useState(0);
 
     useEffect(() => {
         const fetchQuiz = async () => {
@@ -58,12 +62,15 @@ const QuizAttempt = () => {
         }));
     };
 
-    // --- UPDATED handleSubmit ---
     const handleSubmit = async () => {
-        // Prevent double submits
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
         setIsSubmitting(true);
+        setShowConfirmModal(false); 
+
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        }
 
         const finalAnswers = Object.keys(answers).map(questionId => ({
             questionId: questionId,
@@ -93,9 +100,7 @@ const QuizAttempt = () => {
         }
     };
 
-    // --- NEW FUNCTIONS FOR STAGE 2 ---
     const handleStartQuiz = () => {
-        // Request fullscreen
         document.documentElement.requestFullscreen().catch((e) => {
             console.warn("Fullscreen request failed:", e);
             toast.warn("Please enable fullscreen for the best experience.");
@@ -103,26 +108,25 @@ const QuizAttempt = () => {
         setQuizStarted(true);
     };
 
-    const handleAutoSubmit = async () => {
+    const handleAutoSubmit = () => {
         if (isSubmittingRef.current) return;
     
         toast.warn("Quiz auto-submitted due to tab change or exiting fullscreen.", {
             autoClose: 5000
         });
     
-        // Exit fullscreen if still in it
-        if (document.fullscreenElement) {
-            await document.exitFullscreen();
-        }
-    
-        // Call the original submit function
         handleSubmit();
     };
+    
+    const openConfirmationModal = () => {
+        const attempted = Object.keys(answers).length;
+        const total = questions.length;
+        setAttemptedCount(attempted);
+        setLeftCount(total - attempted);
+        setShowConfirmModal(true);
+    };
 
-    // --- NEW useEffect FOR STAGE 2 ---
-    // This effect adds the anti-cheating event listeners
     useEffect(() => {
-        // Only run if the quiz has started and hasn't been scored yet
         if (quizStarted && !score) {
             const handleVisibilityChange = () => {
                 if (document.visibilityState === 'hidden') {
@@ -139,20 +143,18 @@ const QuizAttempt = () => {
             document.addEventListener('visibilitychange', handleVisibilityChange);
             document.addEventListener('fullscreenchange', handleFullscreenChange);
     
-            // Cleanup function
             return () => {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
                 document.removeEventListener('fullscreenchange', handleFullscreenChange);
             };
         }
-    }, [quizStarted, score]); // Dependencies
+    }, [quizStarted, score]);
 
 
     if (loading) {
         return <Loading />;
     }
 
-    // After submission, show the score
     if (score) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -176,7 +178,6 @@ const QuizAttempt = () => {
         );
     }
     
-    // --- NEW: Show "Start Quiz" button first ---
     if (!quizStarted) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
@@ -200,13 +201,66 @@ const QuizAttempt = () => {
         );
     }
     
-    // Display the current question
     const currentQuestion = questions[currentQuestionIndex];
 
     return (
         <div className="min-h-screen flex flex-col md:flex-row p-4 md:p-8">
+            
+            {/* --- NEW TILED WATERMARK --- */}
+            {userData && (
+                <div className="fixed inset-0 flex flex-wrap justify-center items-center gap-x-12 gap-y-20 overflow-hidden pointer-events-none z-10">
+                    {/* Create a large array to tile the watermark */}
+                    {Array.from({ length: 100 }).map((_, i) => (
+                        <span 
+                            key={i} 
+                            className="text-xl font-semibold text-gray-900 opacity-5" 
+                            style={{ transform: 'rotate(-30deg)' }}
+                        >
+                            {userData.email}
+                        </span>
+                    ))}
+                </div>
+            )}
+            {/* --- END WATERMARK --- */}
+
+
+            {/* Confirmation Modal */}
+            {showConfirmModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">Confirm Submission</h2>
+                            <img 
+                                src={assets.cross_icon} 
+                                alt="Close" 
+                                className="w-4 h-4 cursor-pointer" 
+                                onClick={() => setShowConfirmModal(false)}
+                            />
+                        </div>
+                        <p className="mb-2">Are you sure you want to submit?</p>
+                        <p>Questions Attempted: <span className="font-bold">{attemptedCount}</span></p>
+                        <p className="mb-6">Questions Left: <span className="font-bold">{leftCount}</span></p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                onClick={() => setShowConfirmModal(false)}
+                                className="bg-gray-300 text-gray-800 py-2 px-4 rounded font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                className="bg-green-600 text-white py-2 px-4 rounded font-medium"
+                            >
+                                Confirm Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
             {/* Question Palette */}
-            <div className="w-full md:w-1/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0">
+            <div className="w-full md:w-1/4 p-4 border-b md:border-r border-gray-300 mb-4 md:mb-0 relative z-20 bg-white bg-opacity-50">
                 <h2 className="font-semibold mb-4">Questions</h2>
                 <div className="flex flex-wrap gap-2">
                     {questions.map((q, index) => {
@@ -232,7 +286,7 @@ const QuizAttempt = () => {
             </div>
 
             {/* Question Display */}
-            <div className="w-full md:w-3/4 p-4 md:pl-8">
+            <div className="w-full md:w-3/4 p-4 md:pl-8 relative z-20 bg-white bg-opacity-50">
                 {currentQuestion && (
                     <div>
                         <h1 className="text-xl font-semibold mb-2">{quiz.title}</h1>
@@ -269,7 +323,7 @@ const QuizAttempt = () => {
                             </button>
                             {currentQuestionIndex === questions.length - 1 ? (
                                 <button
-                                    onClick={handleSubmit}
+                                    onClick={openConfirmationModal}
                                     disabled={isSubmitting}
                                     className="bg-green-600 text-white py-2 px-6 rounded font-medium disabled:bg-green-400"
                                 >
