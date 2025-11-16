@@ -32,12 +32,20 @@ const QuizAttempt = () => {
                     toast.error(data.message);
                 }
             } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to fetch quiz");
+                // --- UPDATED ERROR HANDLING ---
+                if (error.response?.status === 403) {
+                    // This handles re-attempts or time-window errors
+                    toast.error(error.response.data.message);
+                    navigate('/quizzes'); // Redirect them back
+                } else {
+                    toast.error(error.response?.data?.message || "Failed to fetch quiz");
+                }
+                // --- END UPDATE ---
             }
             setLoading(false);
         };
         fetchQuiz();
-    }, [quizId, backendUrl, getToken]);
+    }, [quizId, backendUrl, getToken, navigate]); // Added navigate to dependency array
 
     const handleAnswerSelect = (questionId, optionIndex) => {
         setAnswers(prevAnswers => ({
@@ -67,7 +75,13 @@ const QuizAttempt = () => {
                 toast.error(data.message);
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to submit quiz");
+            // Also handle errors on submit (e.g., time expired during attempt)
+            if (error.response?.status === 403) {
+                toast.error(error.response.data.message);
+                navigate('/quizzes'); // Redirect them back
+            } else {
+                toast.error(error.response?.data?.message || "Failed to submit quiz");
+            }
         }
     };
 
@@ -81,8 +95,8 @@ const QuizAttempt = () => {
             <div className="min-h-screen flex flex-col items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-lg shadow-lg text-center">
                     <h1 className="text-2xl font-bold mb-4">Quiz Completed!</h1>
-                    <h2 className="text-4xl font-bold text-blue-600 mb-2">{score.score}</h2>
-                    <p className="text-gray-600 mb-4">You scored {score.score} out of {score.totalQuestions}.</p>
+                    <h2 className="text-4xl font-bold text-blue-600 mb-2">{score.score.toFixed(2)}</h2>
+                    <p className="text-gray-600 mb-4">You scored {score.score.toFixed(2)} out of {score.totalQuestions}.</p>
                     <div className="flex justify-around">
                         <p>Total: <span className="font-bold">{score.totalQuestions}</span></p>
                         <p>Correct: <span className="font-bold text-green-600">{score.correctAnswers}</span></p>

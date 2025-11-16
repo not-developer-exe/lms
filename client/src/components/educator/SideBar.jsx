@@ -10,8 +10,9 @@ const SideBar = () => {
   const menuItems = [
     { name: 'Dashboard', path: '/educator', icon: assets.home_icon },
     { name: 'Add Course', path: '/educator/add-course', icon: assets.add_icon },
-    { name: 'Add Quiz', path: '/educator/add-quiz', icon: assets.my_course_icon }, // New Link
+    { name: 'Add Quiz', path: '/educator/add-quiz', icon: assets.my_course_icon }, // Used my_course_icon, change as needed
     { name: 'My Courses', path: '/educator/my-courses', icon: assets.my_course_icon },
+    { name: 'My Quizzes', path: '/educator/my-quizzes', icon: assets.my_course_icon }, // New Link
     { name: 'Student Enrolled', path: '/educator/student-enrolled', icon: assets.person_tick_icon },
   ];
 
@@ -29,7 +30,6 @@ const SideBar = () => {
             }`
           }
         >
-          {/* I'm using my_course_icon for Add Quiz, you can change it */}
           <img src={item.icon} alt="" className="w-6 h-6" />
           <p className='md:block hidden text-center'>{item.name}</p>
         </NavLink>
@@ -47,7 +47,6 @@ const SideBar = () => {
             }`
           }
         >
-          {/* You can use any icon, here I'm re-using 'person_tick_icon' */}
           <img src={assets.person_tick_icon} alt="" className="w-6 h-6" /> 
           <p className='md:block hidden text-center'>Admin Panel</p>
         </NavLink>

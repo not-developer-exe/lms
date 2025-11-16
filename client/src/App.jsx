@@ -16,9 +16,13 @@ import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
 import AdminPanel from './pages/educator/AdminPanel'
+
+// Import new quiz components
 import AddQuiz from './pages/educator/AddQuiz'
 import QuizList from './pages/student/QuizList'
 import QuizAttempt from './pages/student/QuizAttempt'
+import MyQuizzes from './pages/educator/MyQuizzes' // New import
+import QuizResults from './pages/educator/QuizResults' // New import
 
 const App = () => {
 
@@ -38,15 +42,17 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
-        <Route path="/quizzes" element={<QuizList />} /> {/* New Route */}
-        <Route path="/quiz/attempt/:quizId" element={<QuizAttempt />} /> {/* New Route */}
+        <Route path="/quizzes" element={<QuizList />} />
+        <Route path="/quiz/attempt/:quizId" element={<QuizAttempt />} />
 
         {/* Educator/Admin Routes */}
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
-          <Route path='add-quiz' element={<AddQuiz />} /> {/* New Route */}
+          <Route path='add-quiz' element={<AddQuiz />} />
           <Route path='my-courses' element={<MyCourses />} />
+          <Route path='my-quizzes' element={<MyQuizzes />} /> {/* New Route */}
+          <Route path='quiz-results/:quizId' element={<QuizResults />} /> {/* New Route */}
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
           <Route path='admin-panel' element={<AdminPanel />} />
         </Route>

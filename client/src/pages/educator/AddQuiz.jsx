@@ -10,6 +10,10 @@ const AddQuiz = () => {
     
     const [title, setTitle] = useState('');
     const [subject, setSubject] = useState('');
+    // --- NEW STATE ---
+    const [availableFrom, setAvailableFrom] = useState('');
+    const [availableTo, setAvailableTo] = useState('');
+    // --- END NEW STATE ---
     const [questions, setQuestions] = useState([
         { id: uniqid(), questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }
     ]);
@@ -61,7 +65,7 @@ const AddQuiz = () => {
             const token = await getToken();
             const { data } = await axios.post(
                 `${backendUrl}/api/quiz/create`,
-                { title, subject, questions }, // The temporary 'id' field will be ignored by the backend
+                { title, subject, questions, availableFrom, availableTo }, // Send new date fields
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -70,6 +74,8 @@ const AddQuiz = () => {
                 // Reset form
                 setTitle('');
                 setSubject('');
+                setAvailableFrom(''); // Reset date
+                setAvailableTo('');   // Reset date
                 setQuestions([{ id: uniqid(), questionText: '', options: ['', '', '', ''], correctAnswerIndex: 0 }]);
             } else {
                 toast.error(data.message);
@@ -107,6 +113,30 @@ const AddQuiz = () => {
                             required
                         />
                     </div>
+                    {/* --- NEW DATE FIELDS --- */}
+                    <div className="flex gap-4">
+                        <div className="flex flex-col gap-1 w-1/2">
+                            <p>Available From</p>
+                            <input
+                                type="datetime-local"
+                                value={availableFrom}
+                                onChange={(e) => setAvailableFrom(e.target.value)}
+                                className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500"
+                                required
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1 w-1/2">
+                            <p>Available To</p>
+                            <input
+                                type="datetime-local"
+                                value={availableTo}
+                                onChange={(e) => setAvailableTo(e.target.value)}
+                                className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500"
+                                required
+                            />
+                        </div>
+                    </div>
+                     {/* --- END NEW DATE FIELDS --- */}
                 </div>
 
                 {/* Questions */}

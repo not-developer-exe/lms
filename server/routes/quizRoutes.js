@@ -1,11 +1,20 @@
 import express from 'express';
-import { createQuiz, getAllQuizzes, getQuizForStudent, submitQuiz } from '../controllers/quizController.js';
+import { 
+    createQuiz, 
+    getAllQuizzes, 
+    getQuizForStudent, 
+    submitQuiz,
+    getAllManagedQuizzes, 
+    getQuizResults         
+} from '../controllers/quizController.js';
 import { protectAdmin, protectEducator } from '../middlewares/authMiddleware.js';
 
 const quizRouter = express.Router();
 
 // Educator & Admin Routes
-quizRouter.post('/create', protectEducator, createQuiz); // protectEducator also allows admin
+quizRouter.post('/create', protectEducator, createQuiz);
+quizRouter.get('/all-managed', protectEducator, getAllManagedQuizzes); 
+quizRouter.get('/results/:quizId', protectEducator, getQuizResults);  
 
 // Student Routes
 quizRouter.get('/all', getAllQuizzes);
