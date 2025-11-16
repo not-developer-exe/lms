@@ -63,6 +63,7 @@ const Navbar = () => {
               {!isEducator && (
                 <>
                   | <Link to='/my-enrollments' >My Enrollments</Link>
+                  | <Link to='/quizzes' >Quizzes</Link> {/* New Link */}
                 </>
               )}
             </>
@@ -84,6 +85,7 @@ const Navbar = () => {
           { user && !isEducator && (
             <>
               | <Link to='/my-enrollments' >My Enrollments</Link>
+              | <Link to='/quizzes' >Quizzes</Link> {/* New Link */}
             </>
           )}
         </div>

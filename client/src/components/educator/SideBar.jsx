@@ -10,6 +10,7 @@ const SideBar = () => {
   const menuItems = [
     { name: 'Dashboard', path: '/educator', icon: assets.home_icon },
     { name: 'Add Course', path: '/educator/add-course', icon: assets.add_icon },
+    { name: 'Add Quiz', path: '/educator/add-quiz', icon: assets.my_course_icon }, // New Link
     { name: 'My Courses', path: '/educator/my-courses', icon: assets.my_course_icon },
     { name: 'Student Enrolled', path: '/educator/student-enrolled', icon: assets.person_tick_icon },
   ];
@@ -28,6 +29,7 @@ const SideBar = () => {
             }`
           }
         >
+          {/* I'm using my_course_icon for Add Quiz, you can change it */}
           <img src={item.icon} alt="" className="w-6 h-6" />
           <p className='md:block hidden text-center'>{item.name}</p>
         </NavLink>

@@ -46,15 +46,18 @@ export const AppContextProvider = (props) => {
     const fetchUserData = async () => {
 
         try {
-
-            if (user.publicMetadata.role === 'educator') {
-                setIsEducator(true)
+            
+            // --- THIS IS THE FIX ---
+            // The role check must happen here, using the 'user' from useUser()
+            // This runs *before* we fetch our internal DB user.
+            if (user && user.publicMetadata.role === 'educator') {
+                setIsEducator(true);
             }
-            // Check for admin role
-            if (user.publicMetadata.role === 'admin') {
+            if (user && user.publicMetadata.role === 'admin') {
                 setIsAdmin(true);
-                setIsEducator(true); // Admins should also be educators
+                setIsEducator(true); // Admins are also educators
             }
+            // --- END FIX ---
 
             const token = await getToken();
 
@@ -153,8 +156,9 @@ export const AppContextProvider = (props) => {
             setIsAdmin(false);
             setIsEducator(false);
             setUserData(null);
+            setEnrolledCourses([]); // Also clear enrolled courses
         }
-    }, [user])
+    }, [user]) // `user` is the correct dependency
 
     const value = {
         showLogin, setShowLogin,

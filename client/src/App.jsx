@@ -15,7 +15,10 @@ import { ToastContainer } from 'react-toastify'
 import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
-import AdminPanel from './pages/educator/AdminPanel' // Import the new AdminPanel
+import AdminPanel from './pages/educator/AdminPanel'
+import AddQuiz from './pages/educator/AddQuiz'
+import QuizList from './pages/student/QuizList'
+import QuizAttempt from './pages/student/QuizAttempt'
 
 const App = () => {
 
@@ -27,6 +30,7 @@ const App = () => {
       {/* Render Student Navbar only if not on educator routes */}
       {!isEducatorRoute && <Navbar />}
       <Routes>
+        {/* Student Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/course/:id" element={<CourseDetails />} />
         <Route path="/course-list" element={<CoursesList />} />
@@ -34,12 +38,17 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
+        <Route path="/quizzes" element={<QuizList />} /> {/* New Route */}
+        <Route path="/quiz/attempt/:quizId" element={<QuizAttempt />} /> {/* New Route */}
+
+        {/* Educator/Admin Routes */}
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
+          <Route path='add-quiz' element={<AddQuiz />} /> {/* New Route */}
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
-          <Route path='admin-panel' element={<AdminPanel />} /> 
+          <Route path='admin-panel' element={<AdminPanel />} />
         </Route>
       </Routes>
     </div>
