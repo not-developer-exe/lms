@@ -19,13 +19,11 @@ await connectDB()
 await connectCloudinary()
 
 // Middlewares
-// --- THIS IS THE FIX ---
-// We must expose the Content-Disposition header so the client can read the filename
 const corsOptions = {
     exposeHeaders: ['Content-Disposition']
 };
 app.use(cors(corsOptions));
-// --- END FIX ---
+
 app.use(clerkMiddleware())
 
 // Routes
