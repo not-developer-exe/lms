@@ -9,7 +9,7 @@ import { clerkWebhooks } from './controllers/webhooks.js'
 import educatorRouter from './routes/educatorRoutes.js'
 import courseRouter from './routes/courseRoute.js'
 import adminRouter from './routes/adminRoutes.js'
-import quizRouter from './routes/quizRoutes.js' // 1. Import quiz router
+import quizRouter from './routes/quizRoutes.js' // 1. Import the quiz router
 
 // Initialize Express
 const app = express()
@@ -29,7 +29,7 @@ app.use('/api/educator', express.json(), educatorRouter)
 app.use('/api/course', express.json(), courseRouter)
 app.use('/api/user', express.json(), userRouter)
 app.use('/api/admin', express.json(), adminRouter)
-app.use('/api/quiz', express.json(), quizRouter) // 2. Use quiz router
+app.use('/api/quiz', express.json(), quizRouter) 
 
 // Port
 const PORT = process.env.PORT || 5001

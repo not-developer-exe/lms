@@ -30,6 +30,32 @@ const MyQuizzes = () => {
         }
     }, [isEducator]);
 
+    // --- NEW FUNCTION ---
+    const handleDelete = async (quizId, quizTitle) => {
+        // Confirm before deleting
+        if (!window.confirm(`Are you sure you want to delete the quiz "${quizTitle}"? This will also delete all student results.`)) {
+            return;
+        }
+
+        try {
+            const token = await getToken();
+            const { data } = await axios.delete(`${backendUrl}/api/quiz/${quizId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success(data.message);
+                // Refresh the list of quizzes
+                fetchManagedQuizzes();
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to delete quiz");
+        }
+    };
+    // --- END NEW FUNCTION ---
+
     const formatDateTime = (isoString) => {
         const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         return new Date(isoString).toLocaleString('en-US', options);
@@ -60,9 +86,18 @@ const MyQuizzes = () => {
                                     <td className="px-4 py-3">
                                         <button 
                                             onClick={() => navigate(`/educator/quiz-results/${quiz._id}`)}
-                                            className="bg-blue-500 text-white text-xs px-3 py-1 rounded">
-                                            View Results
+                                            className="bg-blue-500 text-white text-xs px-3 py-1 rounded mr-2"
+                                        >
+                                            Results
                                         </button>
+                                        {/* --- NEW BUTTON --- */}
+                                        <button
+                                            onClick={() => handleDelete(quiz._id, quiz.title)}
+                                            className="bg-red-500 text-white text-xs px-3 py-1 rounded"
+                                        >
+                                            Delete
+                                        </button>
+                                        {/* --- END NEW BUTTON --- */}
                                     </td>
                                 </tr>
                             ))}
