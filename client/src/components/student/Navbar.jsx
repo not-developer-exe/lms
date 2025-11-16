@@ -12,6 +12,7 @@ const Navbar = () => {
 
   const isCoursesListPage = location.pathname.includes('/course-list');
 
+  // We already have isEducator from the context
   const { backendUrl, isEducator, setIsEducator, navigate, getToken } = useContext(AppContext)
 
   const { openSignIn } = useClerk()
@@ -56,7 +57,14 @@ const Navbar = () => {
           {
             user && <>
               <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Apply to be Educator'}</button>
-              | <Link to='/my-enrollments' >My Enrollments</Link>
+              
+              {/* --- THIS IS THE CHANGE (Desktop) --- */}
+              {/* Only show "My Enrollments" if NOT an educator/admin */}
+              {!isEducator && (
+                <>
+                  | <Link to='/my-enrollments' >My Enrollments</Link>
+                </>
+              )}
             </>
           }
         </div>
@@ -70,9 +78,14 @@ const Navbar = () => {
       <div className='md:hidden flex items-center gap-2 sm:gap-5 text-gray-500'>
         <div className="flex items-center gap-1 sm:gap-2 max-sm:text-xs">
           <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Apply to be Educator'}</button>
-          | {
-            user && <Link to='/my-enrollments' >My Enrollments</Link>
-          }
+
+          {/* --- THIS IS THE CHANGE (Mobile) --- */}
+          {/* Only show "My Enrollments" if user exists AND is NOT an educator/admin */}
+          { user && !isEducator && (
+            <>
+              | <Link to='/my-enrollments' >My Enrollments</Link>
+            </>
+          )}
         </div>
         {user
           ? <UserButton />
