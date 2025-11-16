@@ -227,7 +227,7 @@ export const deleteQuiz = async (req, res) => {
 
         const quiz = await Quiz.findById(quizId);
         if (!quiz) {
-            return res.status(4F4).json({ success: false, message: "Quiz not found" });
+            return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
         if (quiz.createdBy.toString() !== educatorId) {

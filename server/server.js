@@ -9,7 +9,7 @@ import { clerkWebhooks } from './controllers/webhooks.js'
 import educatorRouter from './routes/educatorRoutes.js'
 import courseRouter from './routes/courseRoute.js'
 import adminRouter from './routes/adminRoutes.js'
-import quizRouter from './routes/quizRoutes.js' 
+import quizRouter from './routes/quizRoutes.js'
 
 // Initialize Express
 const app = express()
@@ -19,7 +19,13 @@ await connectDB()
 await connectCloudinary()
 
 // Middlewares
-app.use(cors())
+// --- THIS IS THE FIX ---
+// We must expose the Content-Disposition header so the client can read the filename
+const corsOptions = {
+    exposeHeaders: ['Content-Disposition']
+};
+app.use(cors(corsOptions));
+// --- END FIX ---
 app.use(clerkMiddleware())
 
 // Routes
@@ -29,7 +35,7 @@ app.use('/api/educator', express.json(), educatorRouter)
 app.use('/api/course', express.json(), courseRouter)
 app.use('/api/user', express.json(), userRouter)
 app.use('/api/admin', express.json(), adminRouter)
-app.use('/api/quiz', express.json(), quizRouter) 
+app.use('/api/quiz', express.json(), quizRouter)
 
 // Port
 const PORT = process.env.PORT || 5001
