@@ -2,28 +2,45 @@ import { v2 as cloudinary } from 'cloudinary'
 import Course from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
 import User from '../models/User.js';
-import { clerkClient } from '@clerk/express'
+import Application from '../models/Application.js';
+import { clerkClient } from '@clerk/express'; // <-- THIS IMPORT WAS MISSING
 
-// update role to educator
-export const updateRoleToEducator = async (req, res) => {
-
+// NEW FUNCTION: Apply for Educator
+export const applyForEducator = async (req, res) => {
     try {
+        const userId = req.auth.userId;
 
-        const userId = req.auth.userId
+        // Check if user already has a pending or approved application
+        const existingApplication = await Application.findOne({ userId });
+        if (existingApplication) {
+            if (existingApplication.status === 'pending') {
+                return res.json({ success: false, message: 'Your application is already pending.' });
+            }
+            if (existingApplication.status === 'approved') {
+                return res.json({ success: false, message: 'You are already an educator.' });
+            }
+            // If rejected, we allow them to re-apply by creating a new one
+            if (existingApplication.status === 'rejected') {
+                await Application.deleteOne({ userId });
+            }
+        }
+        
+        // Check if user is already an admin or educator
+        const user = await clerkClient.users.getUser(userId);
+        if (user.publicMetadata.role === 'educator' || user.publicMetadata.role === 'admin') {
+             return res.json({ success: false, message: 'You are already an educator.' });
+        }
 
-        await clerkClient.users.updateUserMetadata(userId, {
-            publicMetadata: {
-                role: 'educator',
-            },
-        })
-
-        res.json({ success: true, message: 'You can publish a course now' })
+        // Create a new application
+        await Application.create({ userId, status: 'pending' });
+        
+        res.json({ success: true, message: 'Application submitted successfully! You will be notified upon approval.' });
 
     } catch (error) {
-        res.json({ success: false, message: error.message })
+        res.json({ success: false, message: error.message });
     }
-
 }
+
 
 // Add New Course
 export const addCourse = async (req, res) => {

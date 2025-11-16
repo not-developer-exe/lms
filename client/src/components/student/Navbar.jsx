@@ -25,18 +25,26 @@ const Navbar = () => {
         navigate('/educator')
         return;
       }
+      
+      // Check if user is logged in
+      if (!user) {
+        toast.error("Please log in to apply");
+        openSignIn();
+        return;
+      }
 
       const token = await getToken()
-      const { data } = await axios.get(backendUrl + '/api/educator/update-role', { headers: { Authorization: `Bearer ${token}` } })
+      // Make a POST request to the new /apply endpoint
+      const { data } = await axios.post(backendUrl + '/api/educator/apply', {}, { headers: { Authorization: `Bearer ${token}` } })
+      
       if (data.success) {
         toast.success(data.message)
-        setIsEducator(true)
       } else {
         toast.error(data.message)
       }
 
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
@@ -47,7 +55,7 @@ const Navbar = () => {
         <div className="flex items-center gap-5">
           {
             user && <>
-              <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Become Educator'}</button>
+              <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Apply to be Educator'}</button>
               | <Link to='/my-enrollments' >My Enrollments</Link>
             </>
           }
@@ -61,7 +69,7 @@ const Navbar = () => {
       {/* For Phone Screens */}
       <div className='md:hidden flex items-center gap-2 sm:gap-5 text-gray-500'>
         <div className="flex items-center gap-1 sm:gap-2 max-sm:text-xs">
-          <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Become Educator'}</button>
+          <button onClick={becomeEducator}>{isEducator ? 'Educator Dashboard' : 'Apply to be Educator'}</button>
           | {
             user && <Link to='/my-enrollments' >My Enrollments</Link>
           }

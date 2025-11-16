@@ -15,6 +15,7 @@ import { ToastContainer } from 'react-toastify'
 import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
+import AdminPanel from './pages/educator/AdminPanel' // Import the new AdminPanel
 
 const App = () => {
 
@@ -38,6 +39,7 @@ const App = () => {
           <Route path='add-course' element={<AddCourse />} />
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
+          <Route path='admin-panel' element={<AdminPanel />} /> 
         </Route>
       </Routes>
     </div>

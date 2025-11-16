@@ -5,7 +5,7 @@ import { AppContext } from '../../context/AppContext';
 
 const SideBar = () => {
 
-  const { isEducator } = useContext(AppContext)
+  const { isEducator, isAdmin } = useContext(AppContext) // Get isAdmin state
 
   const menuItems = [
     { name: 'Dashboard', path: '/educator', icon: assets.home_icon },
@@ -32,6 +32,24 @@ const SideBar = () => {
           <p className='md:block hidden text-center'>{item.name}</p>
         </NavLink>
       ))}
+
+      {/* Conditionally render the Admin Panel link */}
+      {isAdmin && (
+        <NavLink
+          to="/educator/admin-panel"
+          key="admin-panel"
+          className={({ isActive }) =>
+            `flex items-center md:flex-row flex-col md:justify-start justify-center py-3.5 md:px-10 gap-3 ${isActive
+              ? 'bg-indigo-50 border-r-[6px] border-indigo-500/90'
+              : 'hover:bg-gray-100/90 border-r-[6px] border-white hover:border-gray-100/90'
+            }`
+          }
+        >
+          {/* You can use any icon, here I'm re-using 'person_tick_icon' */}
+          <img src={assets.person_tick_icon} alt="" className="w-6 h-6" /> 
+          <p className='md:block hidden text-center'>Admin Panel</p>
+        </NavLink>
+      )}
     </div>
   );
 };

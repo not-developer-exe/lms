@@ -18,6 +18,7 @@ export const AppContextProvider = (props) => {
 
     const [showLogin, setShowLogin] = useState(false)
     const [isEducator,setIsEducator] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false); // Add Admin state
     const [allCourses, setAllCourses] = useState([])
     const [userData, setUserData] = useState(null)
     const [enrolledCourses, setEnrolledCourses] = useState([])
@@ -48,6 +49,11 @@ export const AppContextProvider = (props) => {
 
             if (user.publicMetadata.role === 'educator') {
                 setIsEducator(true)
+            }
+            // Check for admin role
+            if (user.publicMetadata.role === 'admin') {
+                setIsAdmin(true);
+                setIsEducator(true); // Admins should also be educators
             }
 
             const token = await getToken();
@@ -142,6 +148,11 @@ export const AppContextProvider = (props) => {
         if (user) {
             fetchUserData()
             fetchUserEnrolledCourses()
+        } else {
+            // Reset state if user logs out
+            setIsAdmin(false);
+            setIsEducator(false);
+            setUserData(null);
         }
     }, [user])
 
@@ -153,7 +164,8 @@ export const AppContextProvider = (props) => {
         enrolledCourses, fetchUserEnrolledCourses,
         calculateChapterTime, calculateCourseDuration,
         calculateRating, calculateNoOfLectures,
-        isEducator,setIsEducator
+        isEducator,setIsEducator,
+        isAdmin // Add isAdmin to context
     }
 
     return (
